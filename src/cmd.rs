@@ -46,7 +46,7 @@ pub(crate) enum UsdCmdFlags {
 
 impl UsdCmdFlags {
     /// Write CMD_XFR_TYP using named fields for this response type.
-    pub(crate) unsafe fn write_cmd_xfr_typ(
+    pub(crate) fn write_cmd_xfr_typ(
         self,
         usdhc: &ral::usdhc::RegisterBlock,
         cmd_index: u32,
