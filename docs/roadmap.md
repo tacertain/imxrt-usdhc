@@ -26,6 +26,34 @@ implementation would need:
 - D-cache clean/invalidate around DMA transfers (the i.MX RT 1060 has D-cache)
 - Possibly a const-generic buffer size parameter
 
+## Correctness
+
+### DAT3 pull resistor and ACMD42
+
+The `imxrt-iomuxc` USDHC pin definitions configure GPIO_SD_B0_05 (DAT3) with
+a 100k pull-down. This is correct during card detection (the card's internal
+~50k pull-up on DAT3 pulls the line high when inserted), but wrong during
+4-bit data transfer: the SD spec expects all data lines pulled high when idle.
+
+After card initialization succeeds, the driver should:
+
+1. Send ACMD42 (SET_CLR_CARD_DETECT) with argument 0 to disconnect the card's
+   internal DAT3 pull-up (no longer needed after init).
+2. Reconfigure the GPIO_SD_B0_05 pad from `Pulldown100k` to `Pullup100k` so
+   DAT3 idles high like DAT0-2.
+
+This requires the driver or BSP to have access to the IOMUXC pad control
+register for DAT3 after initialization. Options:
+
+- Accept a mutable reference to the DAT3 pad in `Usdhc::new()` and
+  reconfigure it after `card_init()`.
+- Add a callback or trait method that the BSP provides for pad reconfiguration.
+- Have the BSP reconfigure the pad after `init_usdhc1()` returns, documented
+  as a required post-init step.
+
+If hot-plug support is added later, card removal would need to flip DAT3 back
+to pull-down before the next insertion/init cycle.
+
 ## SD Protocol Features
 
 ### High Speed mode (50 MHz)
@@ -77,14 +105,26 @@ an update. This is the main reason the crate is released independently from
 
 ## Testing
 
-### Software-only testing strategy
+### Software-only testing (done)
 
-The SD protocol state machine (card initialization, CSD parsing) contains
-pure logic that could be unit-tested without hardware. Possible approaches:
+The protocol layer is tested without hardware via `FakeSdHost` (in `src/fake.rs`,
+`#[cfg(test)]` only). This mock implements the `SdHost` trait with a simulated
+card state machine and in-memory block storage. Existing coverage:
 
-- Extract CSD parsing into pure functions that take register values as input
-- Create a mock register backend for the command state machine
-- Test error recovery paths (timeout, CRC error) with injected faults
+- CSD parsing (v1 and v2) with known test vectors
+- Full card initialization for SDHC (v2) and SDSC (v1) cards
+- Clock divisor computation across multiple source/target combinations
+- Block address translation (SDHC passthrough, SDSC byte offset)
+- Error injection via `inject_cmd_error()` for timeout/CRC paths
+
+### Additional test coverage
+
+Possible additions to the existing test suite:
+
+- Multi-block read/write correctness (once CMD18/CMD25 are implemented)
+- Edge cases in `parse_csd()` (max capacity SDXC, unusual CSD v1 geometries)
+- ACMD41 retry exhaustion (timeout after 1000 retries)
+- Card re-initialization after `power_cycle()`
 
 ### CI
 
