@@ -61,12 +61,14 @@ fn into_any<const N: u8>(inst: ral::usdhc::Instance<N>) -> AnyUsdhcInstance {
     }
 }
 
-/// Internal raw hardware handle.
+/// Raw hardware handle for the USDHC peripheral.
 ///
-/// Pure hardware interface — no protocol state. Protocol state lives
-/// in [`SdProtocol`].
+/// This type is an implementation detail. It is `pub` only because proc macros
+/// (e.g. RTIC) may need to name the concrete type of [`Usdhc`]. Do not use it
+/// directly.
+#[doc(hidden)]
 #[derive(Clone, Copy)]
-struct UsdhcInner {
+pub struct UsdhcInner {
     base: *const ral::usdhc::RegisterBlock,
     source_clock_hz: u32,
 }

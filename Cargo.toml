@@ -14,15 +14,32 @@ categories = [
 ]
 
 [dependencies]
-imxrt-ral = "0.6"
+imxrt-ral = "0.5"
 cortex-m = "0.7"
 defmt = { version = "0.3", optional = true }
 
 [dependencies.embedded-sdmmc]
 version = "0.9"
 
+[dev-dependencies.teensy4-bsp]
+path = "../teensy4-rs"
+features = ["rt"]
+
+[dev-dependencies.teensy4-panic]
+path = "../teensy4-rs/teensy4-panic"
+features = ["log"]
+
+[dev-dependencies]
+imxrt-log = { version = "0.1", default-features = false, features = ["usbd", "log"] }
+log = "0.4"
+rtic = { version = "2", features = ["thumbv7-backend"] }
+rtic-monotonics = { version = "1", default-features = false, features = ["cortex-m-systick"] }
+
 [features]
 defmt = ["dep:defmt"]
+
+[[example]]
+name = "rtic_sd_info"
 
 [package.metadata.docs.rs]
 default-target = "thumbv7em-none-eabihf"
