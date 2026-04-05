@@ -14,6 +14,32 @@ filesystems on SD cards connected to the i.MX RT USDHC peripheral.
 - Generic over USDHC instance number (USDHC1, USDHC2)
 - Optional `defmt` support via the `defmt` feature flag
 
+## Usage
+
+Pin muxing and clock configuration must be done before constructing the driver.
+On Teensy 4.1, the BSP configures the USDHC1 root clock automatically and
+exposes `board::USDHC1_FREQUENCY`. Prepare each SD pin with
+`hal::iomuxc::usdhc::prepare()`, then pass the peripheral and clock frequency
+to `Usdhc::new()`:
+
+```rust
+use imxrt_usdhc::{Usdhc, embedded_sdmmc};
+
+hal::iomuxc::usdhc::prepare(&mut pins.p45); // CMD
+hal::iomuxc::usdhc::prepare(&mut pins.p44); // CLK
+hal::iomuxc::usdhc::prepare(&mut pins.p43); // DATA0
+hal::iomuxc::usdhc::prepare(&mut pins.p42); // DATA1
+hal::iomuxc::usdhc::prepare(&mut pins.p47); // DATA2
+hal::iomuxc::usdhc::prepare(&mut pins.p46); // DATA3
+
+let sd = Usdhc::new(usdhc1, board::USDHC1_FREQUENCY)?;
+let volume_mgr = embedded_sdmmc::VolumeManager::new(sd, time_source);
+```
+
+`BlockDevice` methods take `&self`, so the driver does not enforce mutual
+exclusion internally. The caller must ensure only one context accesses the
+driver at a time (e.g. via RTIC resource locking or NVIC masking).
+
 ## Development
 
 To check the driver, enable an `imxrt-ral` chip feature:
@@ -22,8 +48,13 @@ To check the driver, enable an `imxrt-ral` chip feature:
 cargo check --features=imxrt-ral/imxrt1062
 ```
 
-To test on hardware, see the `rtic_sd_info` example in
-[`teensy4-rs`](https://github.com/mciantyre/teensy4-rs).
+To run unit tests (no hardware required):
+
+```
+cargo test
+```
+
+For a hardware example, see `examples/rtic_sd_info.rs`.
 
 ## License
 
